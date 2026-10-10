@@ -1,0 +1,114 @@
+# Phase 3 PoC stack: a real Woodpecker server + agent, a local Forgejo forge, and
+# the Murdock-compatible configuration extension.
+#
+# Usage (from poc/):
+#   ./scripts/poc-up.sh          # start everything + bootstrap Forgejo/repo
+#   ./scripts/poc-trigger.sh     # push a commit to trigger a pipeline
+#   docker compose -f docker-compose.poc.yml --env-file .env.poc logs -f
+#   ./scripts/poc-down.sh        # tear down (keeps data unless -v)
+#
+# The extension is the piece under test: Woodpecker calls it for every
+# triggered pipeline. For a normal trigger it returns a *bootstrap* workflow
+# that runs dispatch.py (the `build.sh` + `.murdock get_jobs` analogue) and
+# starts one pipeline per Murdock job; for a dispatched job it returns that
+# job's workflow.
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:9
+    container_name: poc-forgejo
+    environment:
+      - FORGEJO__database__DB_TYPE=sqlite3
+      - FORGEJO__server__DOMAIN=forgejo
+      - FORGEJO__server__ROOT_URL=http://forgejo:3000/
+      - FORGEJO__server__SSH_DOMAIN=forgejo
+      - FORGEJO__server__HTTP_PORT=3000
+      - FORGEJO__security__INSTALL_LOCK=true
+      - FORGEJO__service__DISABLE_REGISTRATION=false
+      - FORGEJO__service__REQUIRE_SIGNIN_VIEW=false
+      - FORGEJO__actions__ENABLED=false
+      # Woodpecker webhooks target http://woodpecker-server:8000, a private
+      # docker address; allow it.
+      - FORGEJO__webhook__ALLOWED_HOST_LIST=*
+    volumes:
+      - forgejo-data:/data
+    ports:
+      - "3000:3000"
+    networks: [poc]
+
+  redis-ccache:
+    # shared ccache backend + test-result cache (Murdock's redis-ccache)
+    image: redis:7-alpine
+    container_name: poc-redis-ccache
+    command: >
+      redis-server --save "" --maxmemory 2gb --maxmemory-policy allkeys-lru
+    networks: [poc]
+    restart: unless-stopped
+
+  woodpecker-server:
+    image: woodpeckerci/woodpecker-server:v3.19.0
+    container_name: poc-woodpecker-server
+    environment:
+      - WOODPECKER_OPEN=true
+      - WOODPECKER_ADMIN=${POC_FORGEJO_ADMIN}
+      - WOODPECKER_HOST=http://woodpecker-server:8000
+      - WOODPECKER_FORGEJO=true
+      - WOODPECKER_FORGEJO_URL=http://forgejo:3000
+      - WOODPECKER_FORGEJO_CLIENT=${POC_FORGEJO_OAUTH_ID}
+      - WOODPECKER_FORGEJO_SECRET=${POC_FORGEJO_OAUTH_SECRET}
+      - WOODPECKER_AGENT_SECRET=${POC_AGENT_SECRET}
+      - WOODPECKER_GRPC_SECRET=${POC_AGENT_SECRET}
+      # >>> the PoC wiring: route every pipeline through the extension <<<
+      - WOODPECKER_CONFIG_EXTENSION_ENDPOINT=http://config-extension:8000/config
+      - WOODPECKER_EXTENSIONS_ALLOWED_HOSTS=config-extension
+    volumes:
+      - woodpecker-server-data:/var/lib/woodpecker
+    ports:
+      - "8000:8000"
+    depends_on: [forgejo, config-extension]
+    networks: [poc]
+
+  woodpecker-agent:
+    image: woodpeckerci/woodpecker-agent:v3.19.0
+    container_name: poc-woodpecker-agent
+    environment:
+      - WOODPECKER_SERVER=woodpecker-server:9000
+      - WOODPECKER_AGENT_SECRET=${POC_AGENT_SECRET}
+      - WOODPECKER_BACKEND=docker
+      - WOODPECKER_MAX_WORKFLOWS=4
+      # step containers must resolve `forgejo` to clone the repo, and
+      # `woodpecker-server` for the dispatcher to start pipelines
+      - WOODPECKER_BACKEND_DOCKER_NETWORK=poc
+      # shared cache volume for ccache / dl-cache / git-cache
+      - WOODPECKER_BACKEND_DOCKER_VOLUMES=poc-cache:/cache
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on: [woodpecker-server]
+    networks: [poc]
+
+  config-extension:
+    image: riotbuild-lite:poc
+    container_name: poc-config-extension
+    user: "${POC_UID}:${POC_GID}"
+    environment:
+      - POC_BOOTSTRAP_IMAGE=${POC_BOOTSTRAP_IMAGE:-riotbuild-cached:poc}
+      - POC_JOB_IMAGE=${POC_JOB_IMAGE:-riotbuild-cached:poc}
+      - POC_MERGE_TTL=${POC_MERGE_TTL:-3600}
+      - POC_DISCOVERY_JOBS=${POC_DISCOVERY_JOBS:-8}
+      - POC_MAX_DISPATCH=${POC_MAX_DISPATCH:-0}
+      - POC_LOG_REQUEST=${POC_LOG_REQUEST:-}
+    volumes:
+      - ./config-extension:/app:ro
+    command: ["python3", "/app/server.py", "--serve", "--port", "8000"]
+    ports:
+      - "8001:8000"
+    networks: [poc]
+
+networks:
+  poc:
+    name: poc
+
+volumes:
+  forgejo-data:
+  woodpecker-server-data:
+  poc-cache:
+    name: poc-cache

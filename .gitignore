@@ -1,0 +1,12 @@
+# editor / OS noise
+*.swp
+.DS_Store
+
+# PoC runtime state (also covered by poc/.gitignore)
+poc/.env.poc
+poc/.token
+poc/.pr-trigger/
+poc/.mq-trigger/
+poc/.riot-trigger/
+poc/config-extension/out*/
+poc/**/__pycache__/

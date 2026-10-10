@@ -1,0 +1,19 @@
+{
+  "repo": {
+    "name": "RIOT",
+    "slug": "RIOT-OS/RIOT",
+    "scm": "git",
+    "default_branch": "master",
+    "link": "https://github.com/RIOT-OS/RIOT"
+  },
+  "pipeline": {
+    "event": "pull_request",
+    "branch": "master",
+    "commit": "",
+    "message": "poc-demo: touch tests/sys/shell",
+    "changed_files": [
+      "tests/sys/shell/main.c",
+      "boards/native64/Makefile"
+    ]
+  }
+}

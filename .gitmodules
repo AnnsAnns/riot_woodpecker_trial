@@ -1,0 +1,18 @@
+[submodule "RIOT"]
+	path = RIOT
+	url = https://github.com/AnnsAnns/RIOT.git
+[submodule "murdock"]
+	path = murdock
+	url = https://github.com/murdock-ng/murdock.git
+[submodule "murdock-scripts"]
+	path = murdock-scripts
+	url = https://github.com/RIOT-OS/murdock-scripts.git
+[submodule "murdock-worker"]
+	path = murdock-worker
+	url = https://github.com/RIOT-OS/murdock-worker.git
+[submodule "riotdocker"]
+	path = riotdocker
+	url = https://github.com/RIOT-OS/riotdocker.git
+[submodule "murfrog"]
+	path = murfrog
+	url = https://github.com/AnnsAnns/murfrog.git

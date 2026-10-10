@@ -1,0 +1,29 @@
+# Phase 1 (static baseline) PoC pipeline.
+#
+# Proves Woodpecker can drive RIOT's existing build/test logic unchanged.
+# The job set is fixed here; Phase 2 replaces it with dynamically generated
+# workflows (Murdock-style discovery).
+#
+# Run with:
+#   woodpecker-cli exec --backend-engine docker \
+#     --repo-path /path/to/RIOT poc/pipelines/riot-build.yaml
+matrix:
+  APP:
+    - tests/sys/shell
+    - examples/basic/hello-world
+  BOARD:
+    - native64
+
+steps:
+  - name: compile
+    image: riotbuild-lite:poc
+    commands:
+      - BOARD=${BOARD} RIOT_CI_BUILD=1 make -C${APP} all -j4
+
+  - name: test
+    image: riotbuild-lite:poc
+    when:
+      - matrix:
+          APP: tests/sys/shell
+    commands:
+      - BOARD=${BOARD} make -C${APP} test
