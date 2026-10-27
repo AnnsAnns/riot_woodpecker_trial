@@ -270,6 +270,11 @@ That is the whole suite. Two knobs keep a single-node PoC manageable:
   shell logic lives in base64-embedded scripts to keep the YAML valid.
 - `wp_token` must be allowed for the `pull_request` event
   (`woodpecker-cli repo secret add --event pull_request …`).
+- Job steps use step-level `network_mode: host`. Woodpecker's docker backend
+  honours it, but the field is undocumented and missing from the linter schema,
+  so the UI shows `Additional property network_mode is not allowed` as a
+  **warning**. It does not block the pipeline. The gated workflow omits it
+  because it only echoes.
 - Dispatched pipelines target the PR's **source branch** (Woodpecker's
   `pipeline create` has no commit field), so same-repo PRs build the PR head.
 

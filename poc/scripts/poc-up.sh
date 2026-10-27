@@ -13,7 +13,23 @@ COMPOSE=(docker compose -f docker-compose.poc.yml --env-file .env.poc)
 
 log() { printf '\n=== %s ===\n' "$*"; }
 reload_env() { set -a; . ./.env.poc; set +a; }
-wp() { woodpecker-cli --server http://localhost:8000 --token "$(cat .token)" "$@"; }
+
+# woodpecker-cli is needed to activate the repo and configure its secrets.
+# Without it CI never starts, so say so instead of swallowing every `wp` call
+# with `|| true` further down.
+WP_AVAILABLE=1
+if ! command -v woodpecker-cli >/dev/null 2>&1; then
+  WP_AVAILABLE=0
+  echo "WARNING: woodpecker-cli not found on PATH." >&2
+  echo "         The stack will start, but the RIOT repo will not be activated," >&2
+  echo "         its secrets will not be configured, and CI will not run." >&2
+  echo "         Install woodpecker-cli v3.19.x and re-run this script." >&2
+fi
+
+wp() {
+  [ "$WP_AVAILABLE" = 1 ] || return 1
+  woodpecker-cli --server http://localhost:8000 --token "$(cat .token)" "$@"
+}
 
 # --- 0. env file -----------------------------------------------------------
 if [ ! -f .env.poc ]; then
@@ -156,4 +172,4 @@ wp repo secret add --repository "$POC_FORGEJO_ADMIN/RIOT" --name forgejo_token \
 
 log "done"
 echo "Woodpecker UI: http://localhost:8000   Forgejo UI: http://localhost:3000"
-echo "Trigger a build with: ./scripts/poc-trigger.sh"
+echo "Trigger a build with: ./scripts/poc-trigger-pr.sh"
