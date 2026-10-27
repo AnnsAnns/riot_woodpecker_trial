@@ -8,9 +8,8 @@ Woodpecker personal access token on stdout.
 Assumes (host-side):
   - Woodpecker at http://localhost:8000
   - Forgejo    at http://localhost:3000
-and that Woodpecker is configured with FORGEJO_URL=http://forgejo:3000 and
-HOST=http://woodpecker-server:8000 (container names). Those are rewritten to
-localhost for the host-side HTTP requests.
+The stack uses host networking, so Woodpecker and Forgejo are configured with
+those same localhost URLs; no container names appear anywhere.
 """
 
 import http.cookiejar
@@ -33,18 +32,7 @@ FJ = os.environ.get("POC_FJ_URL", "http://localhost:3000")
 USER = os.environ.get("POC_FORGEJO_ADMIN", "pocadmin")
 PASSWORD = os.environ.get("POC_FORGEJO_ADMIN_PASSWORD", "pocpassword123")
 
-REWRITE = {
-    "//forgejo:3000": "//localhost:3000",
-    "//woodpecker-server:8000": "//localhost:8000",
-}
-
 REDIRECT_CODES = (301, 302, 303, 307, 308)
-
-
-def rewrite(url: str) -> str:
-    for a, b in REWRITE.items():
-        url = url.replace(a, b)
-    return url
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -59,7 +47,6 @@ opener = urllib.request.build_opener(
 
 
 def http(method, url, data=None, cookie=None):
-    url = rewrite(url)
     headers = {"User-Agent": "poc-oauth"}
     if cookie:
         headers["Cookie"] = cookie

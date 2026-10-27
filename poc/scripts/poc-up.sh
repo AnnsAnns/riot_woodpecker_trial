@@ -51,8 +51,8 @@ if ! docker image inspect riotbuild-cached:poc >/dev/null 2>&1; then
 fi
 
 # --- 1. Forgejo + extension ------------------------------------------------
-log "starting Forgejo + config-extension"
-"${COMPOSE[@]}" up -d forgejo config-extension
+log "starting Forgejo + redis + config-extension"
+"${COMPOSE[@]}" up -d forgejo redis-ccache config-extension
 
 log "waiting for Forgejo"
 for _ in $(seq 1 60); do
@@ -87,14 +87,14 @@ if ! git ls-remote "$REPO_URL" 2>/dev/null | grep -q refs/heads/master; then
 fi
 
 # --- 5. OAuth application --------------------------------------------------
-# Woodpecker builds the OAuth redirect from WOODPECKER_HOST
-# (http://woodpecker-server:8000); host-side tooling reaches the same server at
-# localhost:8000. Register both so either works.
+# Woodpecker builds the OAuth redirect from WOODPECKER_HOST. Everything in the
+# stack uses host networking, so that is http://localhost:8000 both inside the
+# containers and on the host.
 if [ -z "${POC_FORGEJO_OAUTH_ID:-}" ]; then
   log "creating Forgejo OAuth application"
   curl -s "${FJ_AUTH[@]}" -X POST "$FJ_API/user/applications/oauth2" \
     -H 'Content-Type: application/json' \
-    -d '{"name":"woodpecker","redirect_uris":["http://woodpecker-server:8000/authorize","http://localhost:8000/authorize"],"confidential_client":true}' \
+    -d '{"name":"woodpecker","redirect_uris":["http://localhost:8000/authorize"],"confidential_client":true}' \
     -o /tmp/poc-oauth.json
   CID="$(python3 -c 'import json;print(json.load(open("/tmp/poc-oauth.json"))["client_id"])')"
   CSEC="$(python3 -c 'import json;print(json.load(open("/tmp/poc-oauth.json"))["client_secret"])')"
@@ -134,6 +134,9 @@ echo "token acquired ($(cut -c1-12 .token)...)"
 log "activating repo"
 REPO_FORGE_ID="$(curl -s "${FJ_AUTH[@]}" "$FJ_API/repos/$POC_FORGEJO_ADMIN/RIOT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')"
 wp repo add "$REPO_FORGE_ID" || true
+# generated pipelines use `network_mode: host` to reach localhost:3000/8000;
+# Woodpecker only accepts that for a network-trusted repository.
+wp repo update --trusted-network "$POC_FORGEJO_ADMIN/RIOT" || true
 wp repo ls || true
 
 # secret used by the bootstrap dispatcher to start per-job pipelines. It must

@@ -7,6 +7,16 @@
 #   docker compose -f docker-compose.poc.yml --env-file .env.poc logs -f
 #   ./scripts/poc-down.sh        # tear down (keeps data unless -v)
 #
+# Networking: every service uses host networking, so nothing in the stack has
+# to resolve a container name. Containers, step containers and host-side tools
+# all talk to 127.0.0.1:<port>:
+#
+#   Forgejo HTTP  3000     Woodpecker HTTP      8000
+#   Forgejo SSH   2222     Woodpecker gRPC      9000
+#   config ext.   8001     redis (ccache/tests)  6379
+#
+# Host ports must therefore be free; there is no port publishing.
+#
 # The extension is the piece under test: Woodpecker calls it for every
 # triggered pipeline. For a normal trigger it returns a *bootstrap* workflow
 # that runs dispatch.py (the `build.sh` + `.murdock get_jobs` analogue) and
@@ -16,78 +26,87 @@ services:
   forgejo:
     image: codeberg.org/forgejo/forgejo:9
     container_name: poc-forgejo
+    network_mode: host
     environment:
       - FORGEJO__database__DB_TYPE=sqlite3
-      - FORGEJO__server__DOMAIN=forgejo
-      - FORGEJO__server__ROOT_URL=http://forgejo:3000/
-      - FORGEJO__server__SSH_DOMAIN=forgejo
+      # ROOT_URL/DOMAIN are only used to build clone and web URLs; use the
+      # host address that every container can reach directly.
+      - FORGEJO__server__DOMAIN=localhost
+      - FORGEJO__server__ROOT_URL=http://localhost:3000/
+      - FORGEJO__server__SSH_DOMAIN=localhost
+      - FORGEJO__server__HTTP_ADDR=127.0.0.1
       - FORGEJO__server__HTTP_PORT=3000
+      # host networking shares the host namespace, so the image's bundled sshd
+      # must not take :22 (the host's own sshd usually owns it).
+      - FORGEJO__server__SSH_PORT=2222
+      - SSH_PORT=2222
+      - SSH_LISTEN_PORT=2222
+      - FORGEJO__server__START_SSH_SERVER=false
       - FORGEJO__security__INSTALL_LOCK=true
       - FORGEJO__service__DISABLE_REGISTRATION=false
       - FORGEJO__service__REQUIRE_SIGNIN_VIEW=false
       - FORGEJO__actions__ENABLED=false
-      # Woodpecker webhooks target http://woodpecker-server:8000, a private
-      # docker address; allow it.
+      # Woodpecker webhooks target http://localhost:8000.
       - FORGEJO__webhook__ALLOWED_HOST_LIST=*
     volumes:
       - forgejo-data:/data
-    ports:
-      - "3000:3000"
-    networks: [poc]
 
   redis-ccache:
     # shared ccache backend + test-result cache (Murdock's redis-ccache)
     image: redis:7-alpine
     container_name: poc-redis-ccache
+    network_mode: host
     command: >
-      redis-server --save "" --maxmemory 2gb --maxmemory-policy allkeys-lru
-    networks: [poc]
+      redis-server --bind 127.0.0.1 --save "" --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
     restart: unless-stopped
 
   woodpecker-server:
     image: woodpeckerci/woodpecker-server:v3.19.0
     container_name: poc-woodpecker-server
+    network_mode: host
     environment:
       - WOODPECKER_OPEN=true
       - WOODPECKER_ADMIN=${POC_FORGEJO_ADMIN}
-      - WOODPECKER_HOST=http://woodpecker-server:8000
+      - WOODPECKER_HOST=http://localhost:8000
       - WOODPECKER_FORGEJO=true
-      - WOODPECKER_FORGEJO_URL=http://forgejo:3000
+      - WOODPECKER_FORGEJO_URL=http://localhost:3000
       - WOODPECKER_FORGEJO_CLIENT=${POC_FORGEJO_OAUTH_ID}
       - WOODPECKER_FORGEJO_SECRET=${POC_FORGEJO_OAUTH_SECRET}
       - WOODPECKER_AGENT_SECRET=${POC_AGENT_SECRET}
       - WOODPECKER_GRPC_SECRET=${POC_AGENT_SECRET}
       # >>> the PoC wiring: route every pipeline through the extension <<<
-      - WOODPECKER_CONFIG_EXTENSION_ENDPOINT=http://config-extension:8000/config
-      - WOODPECKER_EXTENSIONS_ALLOWED_HOSTS=config-extension
+      - WOODPECKER_CONFIG_EXTENSION_ENDPOINT=http://localhost:8001/config
+      - WOODPECKER_EXTENSIONS_ALLOWED_HOSTS=localhost,127.0.0.1
     volumes:
       - woodpecker-server-data:/var/lib/woodpecker
-    ports:
-      - "8000:8000"
-    depends_on: [forgejo, config-extension]
-    networks: [poc]
 
   woodpecker-agent:
     image: woodpeckerci/woodpecker-agent:v3.19.0
     container_name: poc-woodpecker-agent
+    network_mode: host
     environment:
-      - WOODPECKER_SERVER=woodpecker-server:9000
+      - WOODPECKER_SERVER=localhost:9000
       - WOODPECKER_AGENT_SECRET=${POC_AGENT_SECRET}
       - WOODPECKER_BACKEND=docker
       - WOODPECKER_MAX_WORKFLOWS=4
-      # step containers must resolve `forgejo` to clone the repo, and
-      # `woodpecker-server` for the dispatcher to start pipelines
-      - WOODPECKER_BACKEND_DOCKER_NETWORK=poc
+      # step containers join the host network namespace (the generated YAML
+      # sets `network_mode: host`, which needs a network-trusted repo), so they
+      # reach Forgejo and the dispatcher as localhost:3000 / localhost:8000.
+      # Do NOT set WOODPECKER_BACKEND_DOCKER_NETWORK=host: the agent would try
+      # `docker network connect host`, which always fails.
+      - WOODPECKER_HEALTHCHECK_ADDR=:3001
       # shared cache volume for ccache / dl-cache / git-cache
       - WOODPECKER_BACKEND_DOCKER_VOLUMES=poc-cache:/cache
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on: [woodpecker-server]
-    networks: [poc]
+      # host container-engine socket; override for rootless podman, e.g.
+      # POC_DOCKER_SOCK=/run/user/1000/podman/podman.sock
+      - ${POC_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
 
   config-extension:
     image: riotbuild-lite:poc
     container_name: poc-config-extension
+    network_mode: host
     user: "${POC_UID}:${POC_GID}"
     environment:
       - POC_BOOTSTRAP_IMAGE=${POC_BOOTSTRAP_IMAGE:-riotbuild-cached:poc}
@@ -98,14 +117,9 @@ services:
       - POC_LOG_REQUEST=${POC_LOG_REQUEST:-}
     volumes:
       - ./config-extension:/app:ro
-    command: ["python3", "/app/server.py", "--serve", "--port", "8000"]
-    ports:
-      - "8001:8000"
-    networks: [poc]
-
-networks:
-  poc:
-    name: poc
+    # 8000 is taken by Woodpecker on the host, hence 8001
+    command: ["python3", "/app/server.py", "--serve", "--host", "127.0.0.1",
+              "--port", "8001"]
 
 volumes:
   forgejo-data:

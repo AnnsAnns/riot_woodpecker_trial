@@ -335,7 +335,7 @@ def murdock_title(env):
 
 
 def dispatch(jobs, dry_run=False):
-    server = _env("WOODPECKER_SERVER_INTERNAL", "http://woodpecker-server:8000")
+    server = _env("WOODPECKER_SERVER_INTERNAL", "http://localhost:8000")
     token = _env("WP_TOKEN")
     repo = _env("CI_REPO")
     # pipeline branch: for PRs this is the target branch, which the UI shows by

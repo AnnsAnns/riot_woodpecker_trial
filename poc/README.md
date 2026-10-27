@@ -93,6 +93,32 @@ make and python3, not the cross toolchains). The actual compile/test jobs use
 the real `riot/riotbuild`. Set `POC_BOOTSTRAP_IMAGE` / `POC_JOB_IMAGE` to
 override.
 
+### Networking
+
+Every service runs with `network_mode: host` and all generated steps carry
+`network_mode: host`, so **nothing resolves a container name** — containers,
+step containers and host-side tools all use `127.0.0.1`:
+
+| service | address |
+| --- | --- |
+| Forgejo HTTP | `http://localhost:3000` |
+| Forgejo SSH | `localhost:2222` |
+| Woodpecker HTTP/UI | `http://localhost:8000` |
+| Woodpecker gRPC | `localhost:9000` |
+| config extension | `http://localhost:8001/config` |
+| redis (ccache + test cache) | `localhost:6379` |
+
+Those host ports must be free. Two consequences:
+
+- the repo must be **network trusted** (`poc-up.sh` sets
+  `wp repo update --trusted-network`), because Woodpecker only accepts
+  `network_mode` from trusted repositories;
+- `WOODPECKER_BACKEND_DOCKER_NETWORK` is deliberately *not* set. The docker
+  backend implements it as `docker network connect <name>`, which cannot work
+  for `host` (the network is entered at container create time, via the step's
+  `network_mode`).
+
+
 ## Running
 
 ```sh
