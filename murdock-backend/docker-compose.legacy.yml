@@ -1,0 +1,45 @@
+version: "3"
+services:
+  disque:
+    image: richnorth/disque
+    expose:
+      - "7711"
+    restart: always
+  disque_exporter:
+    build: ./disque-exporter
+    environment:
+      - DISQUE_EXPORTER_LISTEN_ADDR=[::]:9599
+      - DISQUE_EXPORTER_DISQUE_URL=redis://disque:7711
+      - DISQUE_EXPORTER_HOST=ci-prod
+    restart: always
+    ports:
+      - "[2a01:4f9:1a:f104::1]:9599:9599"
+
+  redis:
+    image: redis:latest
+    expose:
+      - "6379"
+    restart: always
+  ssh:
+    image:  panubo/sshd
+    restart: always
+    environment:
+      - SSH_USERS=murdock-slave:1000:1000
+      - TCP_FORWARDING=true
+      - DISABLE_SCP=true
+    volumes:
+      - ./ssh-host-keys/:/etc/ssh/keys
+      - ./ssh-slave-keys:/etc/authorized_keys
+    ports:
+      - "2222:22"
+
+  vector:                                                                                                                                        
+    image: timberio/vector:0.28.0-alpine
+    restart: unless-stopped
+    volumes:
+      - ./vector.toml:/etc/vector/vector.toml:ro
+    expose:
+      - "8686"
+      - "8687"
+    ports:
+      - "[IPIPIPIP::1]:9598:9598"

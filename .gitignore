@@ -2,11 +2,11 @@
 *.swp
 .DS_Store
 
-# PoC runtime state (also covered by poc/.gitignore)
-poc/.env.poc
-poc/.token
-poc/.pr-trigger/
-poc/.mq-trigger/
-poc/.riot-trigger/
-poc/config-extension/out*/
-poc/**/__pycache__/
+# documentation site build output
+docs/node_modules/
+docs/dist/
+docs/.astro/
+
+# local Murdock runtime state
+murdock-backend/data/
+murdock-backend/.env.local

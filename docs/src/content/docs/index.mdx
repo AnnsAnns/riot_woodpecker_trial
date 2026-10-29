@@ -1,0 +1,91 @@
+---
+title: Murdock CI
+description: Features, configuration, RIOT integration, and API reference for the Murdock continuous integration server.
+template: splash
+hero:
+  tagline: A Python/FastAPI continuous integration (CI) server, its job model, GitHub integration, RIOT CI behavior, and REST/WebSocket API.
+  actions:
+    - text: Get started
+      link: /getting-started/architecture/
+      icon: right-arrow
+    - text: API reference
+      link: /api/overview/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Murdock is the continuous integration server used by [RIOT OS](https://www.riot-os.org/).
+This guide documents the server as implemented by
+[`murdock-ng/murdock`](https://github.com/murdock-ng/murdock), the RIOT-specific
+CI logic around it, and the REST/WebSocket API exposed by a running instance.
+
+<CardGrid>
+  <LinkCard
+    title="Architecture"
+    description="How the API server, workers, jobs, databases, and GitHub fit together."
+    href="/getting-started/architecture/"
+  />
+  <LinkCard
+    title="Run it locally"
+    description="Start a Murdock API + MongoDB stack with Docker Compose."
+    href="/getting-started/local-development/"
+  />
+  <LinkCard
+    title="Job lifecycle"
+    description="Queues, workers, state transitions, failfast, and cancel-on-update."
+    href="/features/jobs/"
+  />
+  <LinkCard
+    title="RIOT CI"
+    description="Quick builds, full builds, merge queues, labels, and caches."
+    href="/features/riot-ci/"
+  />
+  <LinkCard
+    title="RIOT job aggregation"
+    description="How many build and test subjobs become one Murdock job."
+    href="/features/riot-job-aggregation/"
+  />
+  <LinkCard
+    title="API reference"
+    description="Every endpoint, query parameter, model, WebSocket message, and error."
+    href="/api/overview/"
+  />
+</CardGrid>
+
+## What Murdock does
+
+At its core, Murdock connects a Git forge to a pool of jobs. A pull request (PR) is a GitHub change proposal. A webhook is an HTTP callback from GitHub. A job is one CI run for a commit. A worker is a process that runs jobs.
+
+1. A webhook arrives for a pull request or a push.
+2. Murdock checks the event against repository policy: ready labels, branch and
+   tag filters, skip keywords, and the configured repository.
+3. It creates a job, fetches the `.murdock.yml` configuration for the exact
+   commit, and puts the job on a queue.
+4. A worker runs one or more tasks. A task is a shell script or a Docker container. The worker streams the output back to the API.
+5. When the job finishes, Murdock stores it, updates the GitHub commit status,
+   optionally comments on the pull request, and sends notifications.
+
+## Two generations
+
+The documentation distinguishes two architectures that are easy to confuse:
+
+- murdock-ng (this server): an asyncio/FastAPI application with in-process
+  workers, MongoDB/PostgreSQL history, WebSockets, and per-repo `.murdock.yml`.
+- Legacy dwq Murdock: the older control-node + `dwq`/`disque` + worker-fleet
+  design. RIOT's `murdock-scripts/build.sh` and the `murdock-worker` repository
+  belong to this history. They are documented where they explain RIOT CI
+  behavior, but they are not required to run the modern API.
+
+## Version note
+
+The API reference is generated from an OpenAPI 3.0.2 schema served by Murdock at
+`/openapi.json`. The bundled snapshot matches the `murdock` submodule used by
+this repository (version `1.0.0` of the API document). If you point the guide at
+a different Murdock build, refresh the snapshot with:
+
+```sh
+cd docs
+npm run update-openapi
+```

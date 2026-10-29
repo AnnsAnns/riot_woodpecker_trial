@@ -1,0 +1,21 @@
+{
+  "name": "murdock-docs",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "update-openapi": "curl -fsSL http://localhost:8000/openapi.json -o src/assets/openapi.json"
+  },
+  "dependencies": {
+    "@astrojs/markdown-satteri": "^0.4.0",
+    "@astrojs/starlight": "^0.42.7",
+    "astro": "^7.4.4",
+    "sharp": "^0.35.3",
+    "starlight-openapi": "^0.27.0"
+  }
+}

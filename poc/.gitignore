@@ -1,8 +1,0 @@
-# local secrets / generated state
-.env.poc
-.token
-.riot-trigger/
-.pr-trigger/
-config-extension/out*/
-config-extension/__pycache__/
-scripts/__pycache__/

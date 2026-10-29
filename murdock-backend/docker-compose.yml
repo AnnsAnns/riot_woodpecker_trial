@@ -1,0 +1,51 @@
+services:
+  mongo:
+    image: mongo:7
+    command: ["mongod", "--bind_ip_all"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - mongo-data:/data/db
+
+  murdock:
+    image: murdockng/murdock:latest
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      MURDOCK_PROJECT: local
+      MURDOCK_BASE_URL: http://localhost:8000
+      MURDOCK_WORK_DIR: /var/lib/murdock-data
+      MURDOCK_SCRIPTS_DIR: /var/lib/murdock-scripts
+      MURDOCK_SCRIPT_NAME: run.sh
+      MURDOCK_RUN_IN_DOCKER: "0"
+      MURDOCK_NUM_WORKERS: "2"
+      MURDOCK_LOG_LEVEL: INFO
+      MURDOCK_DB_TYPE: mongodb
+      MURDOCK_DB_HOST: mongo
+      MURDOCK_DB_PORT: "27017"
+      MURDOCK_DB_NAME: murdock
+      # The local stack does not talk to GitHub. These values satisfy the
+      # required settings; replace them to test manual jobs or webhooks.
+      MURDOCK_GITHUB_APP_CLIENT_ID: dummy
+      MURDOCK_GITHUB_APP_CLIENT_SECRET: dummy
+      GITHUB_REPO: test/repo
+      GITHUB_WEBHOOK_SECRET: dummy
+      GITHUB_API_TOKEN: dummy
+    volumes:
+      # Run the Python server from the checked-out submodule, using the
+      # dependencies baked into the published image.
+      - ../murdock/murdock:/var/lib/murdock/murdock:ro
+      - ../murdock/murdock.py:/var/lib/murdock/murdock.py:ro
+      - ./scripts:/var/lib/murdock-scripts:ro
+      - ./data:/var/lib/murdock-data
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
