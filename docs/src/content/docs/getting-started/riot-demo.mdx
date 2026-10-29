@@ -1,0 +1,144 @@
+---
+title: Full RIOT demo stack
+description: Run Murdock, a real RIOT .murdock job, and the murfrog UI locally.
+---
+
+import { Image } from 'astro:assets';
+import listShot from '../../../assets/riot-demo-list.png';
+import detailShot from '../../../assets/riot-demo-detail.png';
+import testsShot from '../../../assets/riot-demo-tests.png';
+import statsShot from '../../../assets/riot-demo-stats.png';
+
+This page describes a working local stack that runs:
+
+- the Murdock API and MongoDB,
+- a real RIOT `.murdock` job in Docker mode,
+- RIOT's `process_result.py` aggregation,
+- the `murfrog` web UI.
+
+The demo uses a branch job named `local-demo`. It does not need GitHub.
+A small startup hook schedules the job, and a wrapper runs RIOT's real job
+discovery and result processing.
+
+## What the job does
+
+1. The API starts and schedules one branch job after three seconds.
+2. The job container runs `riotbuild-murdock-demo:local`.
+3. `riot-run.py` clones the mounted RIOT checkout into the job work directory.
+4. It runs `./.murdock get_jobs` with a small `dwqc` shim.
+5. It discovers one static test, four builds, and adds two native tests:
+
+   ```text
+   ./.murdock static_tests
+   ./.murdock compile examples/basic/hello-world native64:gnu
+   ./.murdock compile examples/basic/hello-world samr21-xpro:gnu
+   ./.murdock compile tests/sys/shell native64:gnu
+   ./.murdock compile tests/sys/shell samr21-xpro:gnu
+   ./.murdock run_test examples/basic/hello-world native64:gnu
+   ./.murdock run_test tests/sys/shell native64:gnu
+   ```
+
+6. It sends progress to `PUT /job/<uid>/status`.
+7. It writes `result.json`, `builds.json`, `tests.json`, `stats.json`, and
+   per-target logs.
+8. Murdock stores the job and serves the files from `/results/<uid>/`.
+
+The wrapper builds each native test before it calls `run_test`, because
+`run_test` expects the compile output in `$(pwd)/build`. It also skips the
+inline `dwq-localjob` test so the test result appears as a separate test job in
+murfrog.
+
+The verified run passed all seven commands in 43 seconds. It produced four
+builds and two tests for two applications.
+
+The demo sets `STATIC_TESTS=0` and `TEST_BOARDS_LLVM_COMPILE=none`. The static
+job prints the change-filter status and exits without running the full static
+suite. The extra LLVM builds are disabled to keep the run short. The job total
+counts all seven commands. `stats.json` counts only the four builds and two
+tests.
+
+## Start the stack
+
+```sh
+cd murdock-backend
+docker build -f riot-demo/Dockerfile -t riotbuild-murdock-demo:local ..
+./scripts/start-riot-demo.sh
+```
+
+Open the API at [http://localhost:8000/api](http://localhost:8000/api) or the
+jobs at [http://localhost:8000/jobs](http://localhost:8000/jobs).
+
+The start script reads the RIOT commit SHA and tree from the submodule. It
+starts MongoDB, the Murdock API, and the demo app. The demo app schedules the
+job on startup.
+
+To run the job again, use the restart script:
+
+```sh
+./scripts/restart-riot-demo.sh
+```
+
+Stop the stack with:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.riot-demo.yml down
+# add -v to delete the MongoDB volume and job data
+```
+
+## Start murfrog
+
+In a second terminal:
+
+```sh
+cd murfrog
+npm install
+VITE_MURDOCK_HTTP_BASE_URL=http://localhost:8000 \
+VITE_MURDOCK_WS_URL=ws://localhost:8000/ws/status \
+VITE_GITHUB_REPO=test/repo \
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Open [http://localhost:5173/](http://localhost:5173/).
+
+## What the UI shows
+
+The dashboard lists the `local-demo` branch job and its final state.
+
+<Image src={listShot} alt="Murfrog dashboard with a successful local-demo branch job" />
+
+The job detail page shows four builds and two tests. The Builds tab groups the
+results by application.
+
+<Image src={detailShot} alt="Murfrog job detail with four builds and two tests" />
+
+The Tests tab shows the native test results for both applications.
+
+<Image src={testsShot} alt="Murfrog Tests tab with one passing test per application" />
+
+The Stats tab shows the aggregate job counts and worker runtime from
+`stats.json`.
+
+<Image src={statsShot} alt="Murfrog Stats tab with build, test, and worker totals" />
+
+## Files
+
+| Path | Role |
+| --- | --- |
+| `murdock-backend/docker-compose.riot-demo.yml` | Enables Docker job mode and mounts RIOT |
+| `murdock-backend/riot-demo/Dockerfile` | RIOT build image with `orjson` and the wrapper |
+| `murdock-backend/riot-demo/riot-run.py` | Job discovery, execution, status, and aggregation |
+| `murdock-backend/scripts/demo_app.py` | Schedules the demo job in the API process |
+| `murdock-backend/scripts/start-riot-demo.sh` | Starts the demo stack with the RIOT commit |
+| `murdock-backend/scripts/restart-riot-demo.sh` | Restarts the API and schedules a new job |
+
+## Limits
+
+- The API uses dummy GitHub values. It logs 401 errors when it tries to set a
+  commit status. This does not affect the local job.
+- The demo creates a branch job, not a pull-request job.
+- Only `native64` runs tests. `samr21-xpro` builds only because the demo has no
+  board hardware.
+- The wrapper is demo glue. It uses real RIOT `.murdock` commands and the real
+  `process_result.py`, but it does not use the legacy `dwq`/`disque` fleet.
+- The job work directory contains a full RIOT checkout. Remove the job or the
+  `data/` directory to reclaim space.

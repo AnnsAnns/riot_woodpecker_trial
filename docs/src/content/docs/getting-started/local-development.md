@@ -68,6 +68,9 @@ These checks passed on the local stack:
 
 ## Legacy backend file
 
+For a full RIOT job with the `murfrog` UI, see
+[Full RIOT demo stack](/getting-started/riot-demo/).
+
 The original `murdock-backend/docker-compose` file was the legacy
 disque/redis/ssh/vector backend. It was not a complete Murdock stack. It is
 preserved as `murdock-backend/docker-compose.legacy.yml`.

@@ -39,6 +39,41 @@ The image runs as UID 1000. If your user ID is different, change the owner of
 The stack was tested with a real script-mode job. The job ran `scripts/run.sh`,
 streamed its output, passed, and appeared in `/jobs` and `/results`.
 
+## Full RIOT demo
+
+The `riot-demo` files run a real RIOT `.murdock` job and show it in `murfrog`.
+They use Docker job mode and a wrapper that discovers jobs, runs them, sends
+status updates, and writes the RIOT result files.
+
+```sh
+docker build -f riot-demo/Dockerfile -t riotbuild-murdock-demo:local ..
+./scripts/start-riot-demo.sh
+```
+
+The demo schedules a `local-demo` branch job after the API starts. It runs two
+applications and two boards, then two native tests. The verified run passed all
+seven commands in 43 seconds.
+
+To run the job again:
+
+```sh
+./scripts/restart-riot-demo.sh
+```
+
+See [Full RIOT demo stack](../docs/src/content/docs/getting-started/riot-demo.mdx)
+for the flow, screenshots, and limits.
+
+To run `murfrog`:
+
+```sh
+cd ../murfrog
+npm install
+VITE_MURDOCK_HTTP_BASE_URL=http://localhost:8000 \
+VITE_MURDOCK_WS_URL=ws://localhost:8000/ws/status \
+VITE_GITHUB_REPO=test/repo \
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
 ## Legacy backend file
 
 The original `docker-compose` file was the legacy disque/redis/ssh/vector

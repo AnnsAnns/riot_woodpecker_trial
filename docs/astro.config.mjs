@@ -25,6 +25,7 @@ export default defineConfig({
             'getting-started/architecture',
             'getting-started/deployment',
             'getting-started/local-development',
+            'getting-started/riot-demo',
           ],
         },
         {

@@ -13,6 +13,7 @@ services:
 
   murdock:
     image: murdockng/murdock:latest
+    container_name: murdock-api-local
     depends_on:
       mongo:
         condition: service_healthy

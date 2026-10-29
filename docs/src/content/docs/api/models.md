@@ -21,7 +21,7 @@ All models are Pydantic models from `murdock/models.py`. API responses use
 | `state` | string? | `queued`, `running`, `passed`, `errored`, `stopped` |
 | `output` | string? | Full output text |
 | `output_text_url` | string? | URL to `output.txt` |
-| `runtime` | number? | Runtime in seconds |
+| `runtime` | number? | Runtime in seconds. For a running job, this value can be negative because the stop time is zero until the job finishes. |
 | `trigger` | string | `push`, `pr (<action>)`, `api (manual)`, `api (restart)` |
 | `triggered_by` | string? | GitHub login that triggered the job |
 | `env` | object? | Public environment variables (secrets removed) |

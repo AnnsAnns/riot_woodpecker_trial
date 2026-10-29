@@ -1,0 +1,20 @@
+--- a/murdock/main.py
++++ b/murdock/main.py
+@@ -165,7 +165,7 @@
+     path="/jobs",
+     response_model=List[JobModel],
+     response_model_exclude_none=True,
+-    summary="Removed finished jobs older than 'before' date",
++    summary="Remove finished jobs older than 'before' date",
+     tags=["jobs"],
+ )
+ async def finished_job_delete_handler(
+@@ -276,7 +276,7 @@
+     path="/job/commit",
+     response_model=JobModel,
+     response_model_exclude_none=True,
+-    summary="Start a manual job on a tag",
++    summary="Start a manual job on a commit",
+     tags=["commit job"],
+ )
+ async def job_start_commit_handler(

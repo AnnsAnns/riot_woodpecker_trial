@@ -1,0 +1,21 @@
+services:
+  murdock:
+    entrypoint: ["python3", "/opt/demo/demo_app.py"]
+    environment:
+      PYTHONPATH: /var/lib/murdock
+      RIOT_DEMO: "1"
+      RIOT_SHA: "${RIOT_SHA:-}"
+      RIOT_TREE: "${RIOT_TREE:-}"
+      MURDOCK_RUN_IN_DOCKER: "1"
+      MURDOCK_DOCKER_DEFAULT_TASK_IMAGE: riotbuild-murdock-demo:local
+      MURDOCK_HOST_WORK_DIR: "${PWD}/data"
+      MURDOCK_DOCKER_VOLUMES: >-
+        {"${PWD}/../RIOT":"/riot"}
+      MURDOCK_USER_UID: "1000"
+      MURDOCK_USER_GID: "1000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PWD}/scripts:/opt/demo:ro
+      - ${PWD}/../RIOT:/riot:ro
+    group_add:
+      - "${DOCKER_GID:-961}"

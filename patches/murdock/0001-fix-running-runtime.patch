@@ -1,0 +1,14 @@
+--- a/murdock/job.py
++++ b/murdock/job.py
+@@ -94,7 +94,10 @@
+ 
+     @property
+     def runtime(self) -> timedelta:
+-        return self.stop_time - self.start_time
++        if self.start_time.timestamp() == 0:
++            return timedelta(0)
++        end = self.stop_time if self.stop_time > self.start_time else datetime.now(timezone.utc)
++        return end - self.start_time
+ 
+     @property
+     def runtime_human(self) -> str:

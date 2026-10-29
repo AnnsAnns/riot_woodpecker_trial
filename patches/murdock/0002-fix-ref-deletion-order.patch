@@ -1,0 +1,14 @@
+--- a/murdock/murdock.py
++++ b/murdock/murdock.py
+@@ -590,9 +590,9 @@
+             LOGGER.debug(
+                 "Ref was removed upstream, aborting all jobs related to ref", ref=ref
+             )
+-            for job in self.running.search_by_ref(ref):
+-                await self.cancel_queued_job(job, reload_jobs=True)
+             for job in self.queued.search_by_ref(ref):
++                await self.cancel_queued_job(job, reload_jobs=True)
++            for job in self.running.search_by_ref(ref):
+                 await self.stop_running_job(job)
+             return
+         commit = await fetch_commit_info(event["after"])

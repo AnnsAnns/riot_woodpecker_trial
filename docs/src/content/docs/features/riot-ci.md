@@ -152,6 +152,9 @@ After a successful build:
 `run_test` is used by the inline `dwq-localjob` path for native and emulated
 boards. The legacy `test_job` helper can also queue it on a board queue.
 
+`run_test` expects the compiled binary in `$(pwd)/build`. The compile job
+normally creates it. A separate test job must build the application first.
+
 ```sh
 BOARD=<board> TOOLCHAIN=<toolchain> make -C<app> flash-only termdeps -j2
 BOARD=<board> TOOLCHAIN=<toolchain> make -C<app> test

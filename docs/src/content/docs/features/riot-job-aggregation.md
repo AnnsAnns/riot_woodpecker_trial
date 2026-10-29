@@ -104,6 +104,9 @@ dwq-localjob \
 The command override makes the result appear as a test job in the Murdock
 output and UI instead of appearing as part of the compile job.
 
+If a separate job calls `run_test`, that job must build the application first.
+`run_test` expects the binary in `$(pwd)/build`.
+
 ## Live aggregation
 
 `build.sh` starts a reporter before it submits the job list:
@@ -187,7 +190,7 @@ The parser in `common.py` reads each result:
 | `build_failures.json` | Flat list of failed build targets |
 | `tests.json` | One row per application with test counts and failures |
 | `test_failures.json` | Flat list of failed test targets |
-| `stats.json` | Total build and test jobs, total worker runtime, and per-worker statistics |
+| `stats.json` | Total build and test jobs, total worker runtime, and per-worker statistics. Static tests are not counted. |
 | `output/builds/<app>/app.json` | Per-application build jobs and failures |
 | `output/tests/<app>/app.json` | Per-application test jobs and failures |
 

@@ -52,10 +52,18 @@ Key points:
   `MURDOCK_WORK_DIR` is visible on the host. This matters when Murdock
   itself runs in a container.
 - Additional volumes come from `MURDOCK_DOCKER_VOLUMES` (a JSON/YAML map of
-  host path to container path).
+  host path to container path), for example:
+
+  ```dotenv
+  MURDOCK_DOCKER_VOLUMES='{"/srv/RIOT":"/riot"}'
+  ```
 - The container joins the API container's network namespace
   (`container:murdock-api-<project>`), so it can reach the API and other
-  services on that network.
+  services on that network. The API container must use the matching name
+  `murdock-api-<MURDOCK_PROJECT>`.
+- Docker mode needs access to the Docker socket. Add the socket group ID to the
+  API container's groups, or run the API container as a user that can use the
+  socket.
 - Stopping sends `docker stop --time 5`.
 
 ## Multiple tasks

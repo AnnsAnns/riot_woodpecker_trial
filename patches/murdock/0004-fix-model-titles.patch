@@ -1,0 +1,25 @@
+--- a/murdock/models.py
++++ b/murdock/models.py
+@@ -53,7 +53,7 @@
+         title="List of Github labels assigned to the pull request",
+     )
+     state: str = Field(None, title="State of the pull request on GitHub")
+-    is_merged: bool = Field(None, title="Wether the pull request or not")
++    is_merged: bool = Field(None, title="Whether the pull request is merged")
+ 
+ 
+ class CommitModel(BaseModel):
+@@ -132,11 +132,11 @@
+     )
+     env: Optional[dict[str, str]] = Field(
+         None,
+-        title="Dictionnary of environment variables attached to the job",
++        title="Dictionary of environment variables attached to the job",
+     )
+     user_env: Optional[dict[str, str]] = Field(
+         None,
+-        title="User defined dictionnary of environment variables atteched to the job",
++        title="User defined dictionary of environment variables attached to the job",
+     )
+     artifacts: Optional[List[str]] = Field(
+         None,

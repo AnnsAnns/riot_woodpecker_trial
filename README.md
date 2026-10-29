@@ -10,6 +10,7 @@ The previous Woodpecker proof of concept is archived and removed from the workin
 | --- | --- |
 | [`docs/`](docs/README.md) | Astro Starlight documentation for Murdock features and API |
 | [`murdock-backend/`](murdock-backend/README.md) | Local Murdock stack and the legacy backend compose file |
+| [`patches/`](patches/README.md) | Git patches for submodule fixes |
 | `murdock/` | [murdock-ng/murdock](https://github.com/murdock-ng/murdock) (submodule), the Murdock server |
 | `RIOT/` | [AnnsAnns/RIOT](https://github.com/AnnsAnns/RIOT) (submodule), RIOT and `.murdock` |
 | `murdock-scripts/` | [RIOT-OS/murdock-scripts](https://github.com/RIOT-OS/murdock-scripts) (submodule), RIOT-specific Murdock scripts |
@@ -38,11 +39,26 @@ docker compose up -d
 # OpenAPI:  http://localhost:8000/openapi.json
 ```
 
+For a full RIOT job with the `murfrog` UI, see
+[`docs/src/content/docs/getting-started/riot-demo.mdx`](docs/src/content/docs/getting-started/riot-demo.mdx).
+
 ## Submodules
 
 ```sh
 git submodule update --init --recursive
 ```
+
+The `patches/` directory contains fixes for the `murdock` submodule. Apply,
+check, or revert them without changing the submodule source in place:
+
+```sh
+./patches/apply.sh check
+./patches/apply.sh apply
+./patches/apply.sh revert
+```
+
+The local RIOT demo does not need these patches. See
+[`patches/README.md`](patches/README.md) for the list.
 
 ## Archived Woodpecker PoC
 
